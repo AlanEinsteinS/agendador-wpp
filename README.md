@@ -30,8 +30,8 @@ Um agendador de mensagens automático para WhatsApp que permite programar o envi
 
 1. Clone este repositório:
    ```bash
-   git clone https://github.com/seu-usuario/whatsapp-scheduler-pro.git
-   cd whatsapp-scheduler-pro
+   git clone https://github.com/AlanEinsteinS/agendador-wpp/.git
+   cd agendador-wpp
    ```
 
 2. Instale as dependências necessárias:
