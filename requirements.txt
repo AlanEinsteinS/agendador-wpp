@@ -1,0 +1,44 @@
+# Requisitos para o Agendador Automático de WhatsApp
+
+## Bibliotecas Python necessárias:
+```
+selenium==4.12.0
+webdriver-manager==4.0.0
+schedule==1.2.0
+```
+
+## Instruções de instalação:
+
+1. Certifique-se de ter o Python 3.7 ou superior instalado
+2. Instale as dependências necessárias:
+   ```
+   pip install selenium webdriver-manager schedule
+   ```
+3. Certifique-se de ter o Google Chrome instalado em seu sistema
+4. Execute o script Python:
+   ```
+   python whatsapp_scheduler.py
+   ```
+
+## Observações importantes:
+
+1. O script utiliza Selenium para automatizar o navegador Chrome
+2. Na primeira execução, você precisará escanear o código QR do WhatsApp Web
+3. O computador precisa estar ligado e o programa em execução para que as mensagens sejam enviadas nos horários agendados
+4. Mantenha a sessão do WhatsApp Web ativa (não faça logout)
+5. O uso de ferramentas de automação com o WhatsApp pode violar os termos de serviço em alguns casos
+
+## Solução de problemas:
+
+1. Se ocorrer erro "ChromeDriver não encontrado":
+   - O webdriver-manager deveria baixar automaticamente
+   - Se falhar, baixe manualmente o ChromeDriver compatível com sua versão do Chrome em: https://chromedriver.chromium.org/downloads
+
+2. Se as mensagens não forem enviadas:
+   - Verifique se a sessão do WhatsApp Web está ativa
+   - Certifique-se de que o formato do número de telefone está correto (com código do país)
+   - Verifique se o computador não entrou em modo de suspensão
+
+3. Se o WhatsApp Web não abrir:
+   - Verifique sua conexão com a internet
+   - Reinicie o programa e tente novamente
