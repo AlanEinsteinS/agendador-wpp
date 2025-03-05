@@ -118,15 +118,25 @@ class WhatsAppScheduler:
         self.tree.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
         scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
         
-        # Adicionar botões para manipular mensagens
-        buttons_frame = ttk.Frame(main_frame)
+        # Frame para os botões de gerenciamento
+        buttons_frame = ttk.LabelFrame(main_frame, text="Gerenciar Mensagens", padding="10")
         buttons_frame.pack(fill=tk.X, pady=5)
         
-        delete_button = ttk.Button(buttons_frame, text="Excluir Selecionado", command=self.delete_selected)
-        delete_button.pack(side=tk.LEFT, padx=5)
+        # Criar grid para os botões (2 linhas x 3 colunas)
+        delete_button = ttk.Button(buttons_frame, text="Excluir Selecionado", command=self.delete_selected, width=20)
+        delete_button.grid(row=0, column=0, padx=5, pady=5, sticky=tk.W)
         
-        clear_button = ttk.Button(buttons_frame, text="Limpar Todos", command=self.clear_all)
-        clear_button.pack(side=tk.LEFT, padx=5)
+        edit_button = ttk.Button(buttons_frame, text="Editar Mensagem", command=self.edit_selected, width=20)
+        edit_button.grid(row=0, column=1, padx=5, pady=5, sticky=tk.W)
+        
+        reschedule_button = ttk.Button(buttons_frame, text="Reagendar", command=self.reschedule_selected, width=20)
+        reschedule_button.grid(row=0, column=2, padx=5, pady=5, sticky=tk.W)
+        
+        duplicate_button = ttk.Button(buttons_frame, text="Duplicar", command=self.duplicate_selected, width=20)
+        duplicate_button.grid(row=1, column=0, padx=5, pady=5, sticky=tk.W)
+        
+        clear_button = ttk.Button(buttons_frame, text="Limpar Todos", command=self.clear_all, width=20)
+        clear_button.grid(row=1, column=1, padx=5, pady=5, sticky=tk.W)
         
         # Frame de status
         status_frame = ttk.Frame(main_frame)
@@ -242,20 +252,31 @@ class WhatsAppScheduler:
     
     def delete_selected(self):
         """Excluir a mensagem selecionada."""
-        selected_item = self.tree.selection()
-        if not selected_item:
+        selected_items = self.tree.selection()
+        if not selected_items:
             messagebox.showwarning("Aviso", "Selecione uma mensagem para excluir.")
             return
         
-        # Obter ID da mensagem selecionada
-        msg_id = int(self.tree.item(selected_item[0])["values"][0])
-        
-        # Remover da lista
-        self.messages = [msg for msg in self.messages if msg["id"] != msg_id]
+        if len(selected_items) > 1:
+            confirm = messagebox.askyesno("Confirmar", f"Deseja excluir {len(selected_items)} mensagens selecionadas?")
+        else:
+            confirm = messagebox.askyesno("Confirmar", "Deseja excluir a mensagem selecionada?")
+            
+        if not confirm:
+            return
+            
+        # Processar todas as mensagens selecionadas
+        for item in selected_items:
+            # Obter ID da mensagem selecionada
+            msg_id = int(self.tree.item(item)["values"][0])
+            
+            # Remover da lista
+            self.messages = [msg for msg in self.messages if msg["id"] != msg_id]
         
         # Salvar e atualizar
         self.save_messages()
         self.update_message_list()
+        messagebox.showinfo("Sucesso", f"{len(selected_items)} mensagem(ns) excluída(s) com sucesso.")
     
     def clear_all(self):
         """Limpar todas as mensagens."""
@@ -263,10 +284,66 @@ class WhatsAppScheduler:
             messagebox.showinfo("Info", "Não há mensagens para limpar.")
             return
         
-        if messagebox.askyesno("Confirmar", "Tem certeza que deseja excluir todas as mensagens?"):
-            self.messages = []
-            self.save_messages()
-            self.update_message_list()
+        # Opções avançadas para limpeza
+        clear_options = ["Todas as mensagens", 
+                         "Apenas mensagens já enviadas", 
+                         "Apenas mensagens com erro",
+                         "Mensagens mais antigas que uma semana",
+                         "Cancelar"]
+        
+        from tkinter import simpledialog
+        
+        choice = simpledialog.askstring(
+            "Opções de Limpeza",
+            "Escolha o que deseja limpar:\n\n"
+            "1. Todas as mensagens\n"
+            "2. Apenas mensagens já enviadas\n"
+            "3. Apenas mensagens com erro\n"
+            "4. Mensagens mais antigas que uma semana\n"
+            "5. Cancelar",
+            initialvalue="1"
+        )
+        
+        if not choice or choice == "5":
+            return
+        
+        try:
+            choice = int(choice)
+            if choice < 1 or choice > 5:
+                raise ValueError
+        except ValueError:
+            messagebox.showerror("Erro", "Opção inválida.")
+            return
+        
+        # Processamento baseado na escolha
+        if choice == 1:  # Todas as mensagens
+            if messagebox.askyesno("Confirmar", "Tem certeza que deseja excluir TODAS as mensagens?"):
+                self.messages = []
+                messagebox.showinfo("Sucesso", "Todas as mensagens foram excluídas.")
+        
+        elif choice == 2:  # Apenas enviadas
+            old_count = len(self.messages)
+            self.messages = [msg for msg in self.messages if msg["status"] != "Enviado"]
+            deleted = old_count - len(self.messages)
+            messagebox.showinfo("Sucesso", f"{deleted} mensagem(ns) enviada(s) foi(ram) excluída(s).")
+        
+        elif choice == 3:  # Apenas com erro
+            old_count = len(self.messages)
+            self.messages = [msg for msg in self.messages if msg["status"] != "Falha"]
+            deleted = old_count - len(self.messages)
+            messagebox.showinfo("Sucesso", f"{deleted} mensagem(ns) com erro foi(ram) excluída(s).")
+        
+        elif choice == 4:  # Mais antigas que uma semana
+            old_count = len(self.messages)
+            one_week_ago = datetime.datetime.now() - datetime.timedelta(days=7)
+            self.messages = [msg for msg in self.messages if 
+                           datetime.datetime.strptime(msg["schedule_time"], "%Y-%m-%d %H:%M:%S") > one_week_ago]
+            deleted = old_count - len(self.messages)
+            messagebox.showinfo("Sucesso", f"{deleted} mensagem(ns) antiga(s) foi(ram) excluída(s).")
+        
+        # Salvar e atualizar
+        self.save_messages()
+        self.update_message_list()
     
     def save_messages(self):
         """Salvar mensagens em arquivo."""
@@ -451,7 +528,7 @@ class WhatsAppScheduler:
             current_time = datetime.datetime.now()
             
             for msg in self.messages[:]:  # Usar uma cópia para evitar problemas ao modificar durante iteração
-                if msg["status"] == "Agendado":
+                if msg["status"] == "Agendado" or msg["status"] == "Reagendado":
                     schedule_time = datetime.datetime.strptime(msg["schedule_time"], "%Y-%m-%d %H:%M:%S")
                     
                     # Se chegou a hora de enviar
@@ -479,6 +556,237 @@ class WhatsAppScheduler:
             if self.stop_thread:
                 break
     
+    def edit_selected(self):
+        """Editar a mensagem selecionada."""
+        selected_item = self.tree.selection()
+        if not selected_item:
+            messagebox.showwarning("Aviso", "Selecione uma mensagem para editar.")
+            return
+        
+        # Obter ID da mensagem selecionada
+        msg_id = int(self.tree.item(selected_item[0])["values"][0])
+        
+        # Encontrar a mensagem na lista
+        selected_msg = None
+        for msg in self.messages:
+            if msg["id"] == msg_id:
+                selected_msg = msg
+                break
+        
+        if not selected_msg:
+            messagebox.showerror("Erro", "Mensagem não encontrada.")
+            return
+        
+        # Verificar se a mensagem já foi enviada
+        if selected_msg["status"] == "Enviado":
+            messagebox.showwarning("Aviso", "Não é possível editar uma mensagem já enviada.")
+            return
+        
+        # Criar uma janela de diálogo para edição
+        edit_window = tk.Toplevel(self.root)
+        edit_window.title("Editar Mensagem")
+        edit_window.geometry("500x400")
+        edit_window.resizable(False, False)
+        edit_window.transient(self.root)
+        edit_window.grab_set()
+        
+        # Frame principal
+        edit_frame = ttk.Frame(edit_window, padding="10")
+        edit_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Campos de edição
+        ttk.Label(edit_frame, text="Número de Telefone:").grid(row=0, column=0, sticky=tk.W, pady=5)
+        phone_entry = ttk.Entry(edit_frame, width=30)
+        phone_entry.grid(row=0, column=1, sticky=tk.W, pady=5)
+        phone_entry.insert(0, selected_msg["phone"])
+        
+        ttk.Label(edit_frame, text="Mensagem:").grid(row=1, column=0, sticky=tk.W, pady=5)
+        message_text = scrolledtext.ScrolledText(edit_frame, width=40, height=10)
+        message_text.grid(row=1, column=1, sticky=tk.W, pady=5)
+        message_text.insert("1.0", selected_msg["message"])
+        
+        # Botões
+        buttons_frame = ttk.Frame(edit_frame)
+        buttons_frame.grid(row=2, column=0, columnspan=2, pady=10)
+        
+        save_button = ttk.Button(buttons_frame, text="Salvar", width=10, command=lambda: self.save_edited_message(
+            edit_window, msg_id, phone_entry.get(), message_text.get("1.0", tk.END).strip()))
+        save_button.pack(side=tk.LEFT, padx=5)
+        
+        cancel_button = ttk.Button(buttons_frame, text="Cancelar", width=10, command=edit_window.destroy)
+        cancel_button.pack(side=tk.LEFT, padx=5)
+    
+    def save_edited_message(self, window, msg_id, phone, message):
+        """Salvar a mensagem editada."""
+        # Validar número de telefone
+        if not phone.isdigit() or len(phone) < 10:
+            messagebox.showerror("Erro", "Número de telefone inválido. Use apenas números, incluindo código do país e DDD.")
+            return
+        
+        # Validar mensagem
+        if not message:
+            messagebox.showerror("Erro", "A mensagem não pode estar vazia.")
+            return
+        
+        # Atualizar a mensagem
+        for msg in self.messages:
+            if msg["id"] == msg_id:
+                msg["phone"] = phone
+                msg["message"] = message
+                break
+        
+        # Salvar e atualizar
+        self.save_messages()
+        self.update_message_list()
+        
+        # Fechar janela de edição
+        window.destroy()
+        
+        messagebox.showinfo("Sucesso", "Mensagem atualizada com sucesso.")
+    
+    def reschedule_selected(self):
+        """Reagendar a mensagem selecionada."""
+        selected_item = self.tree.selection()
+        if not selected_item:
+            messagebox.showwarning("Aviso", "Selecione uma mensagem para reagendar.")
+            return
+        
+        # Obter ID da mensagem selecionada
+        msg_id = int(self.tree.item(selected_item[0])["values"][0])
+        
+        # Encontrar a mensagem na lista
+        selected_msg = None
+        for msg in self.messages:
+            if msg["id"] == msg_id:
+                selected_msg = msg
+                break
+        
+        if not selected_msg:
+            messagebox.showerror("Erro", "Mensagem não encontrada.")
+            return
+        
+        # Verificar se a mensagem já foi enviada
+        if selected_msg["status"] == "Enviado":
+            messagebox.showwarning("Aviso", "Não é possível reagendar uma mensagem já enviada.")
+            return
+        
+        # Obter a data e hora atual
+        current_datetime = datetime.datetime.strptime(selected_msg["schedule_time"], "%Y-%m-%d %H:%M:%S")
+        current_date = current_datetime.strftime("%d/%m/%Y")
+        current_time = current_datetime.strftime("%H:%M")
+        
+        # Criar uma janela de diálogo para edição
+        reschedule_window = tk.Toplevel(self.root)
+        reschedule_window.title("Reagendar Mensagem")
+        reschedule_window.geometry("400x200")
+        reschedule_window.resizable(False, False)
+        reschedule_window.transient(self.root)
+        reschedule_window.grab_set()
+        
+        # Frame principal
+        reschedule_frame = ttk.Frame(reschedule_window, padding="10")
+        reschedule_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Campos de edição
+        ttk.Label(reschedule_frame, text="Nova Data (DD/MM/AAAA):").grid(row=0, column=0, sticky=tk.W, pady=5)
+        date_entry = ttk.Entry(reschedule_frame, width=15)
+        date_entry.grid(row=0, column=1, sticky=tk.W, pady=5)
+        date_entry.insert(0, current_date)
+        
+        ttk.Label(reschedule_frame, text="Nova Hora (HH:MM):").grid(row=1, column=0, sticky=tk.W, pady=5)
+        time_entry = ttk.Entry(reschedule_frame, width=10)
+        time_entry.grid(row=1, column=1, sticky=tk.W, pady=5)
+        time_entry.insert(0, current_time)
+        
+        # Botões
+        buttons_frame = ttk.Frame(reschedule_frame)
+        buttons_frame.grid(row=2, column=0, columnspan=2, pady=10)
+        
+        save_button = ttk.Button(buttons_frame, text="Salvar", width=10, command=lambda: self.save_rescheduled_message(
+            reschedule_window, msg_id, date_entry.get(), time_entry.get()))
+        save_button.pack(side=tk.LEFT, padx=5)
+        
+        cancel_button = ttk.Button(buttons_frame, text="Cancelar", width=10, command=reschedule_window.destroy)
+        cancel_button.pack(side=tk.LEFT, padx=5)
+    
+    def save_rescheduled_message(self, window, msg_id, date_str, time_str):
+        """Salvar a nova data/hora da mensagem."""
+        # Validar formato da data
+        try:
+            day, month, year = map(int, date_str.split('/'))
+            schedule_date = datetime.date(year, month, day)
+        except ValueError:
+            messagebox.showerror("Erro", "Formato de data inválido. Use DD/MM/AAAA.")
+            return
+        
+        # Validar formato da hora
+        try:
+            hour, minute = map(int, time_str.split(':'))
+            schedule_time = datetime.time(hour, minute)
+        except ValueError:
+            messagebox.showerror("Erro", "Formato de hora inválido. Use HH:MM.")
+            return
+        
+        # Combinar data e hora
+        schedule_datetime = datetime.datetime.combine(schedule_date, schedule_time)
+        
+        # Verificar se a data é no futuro
+        if schedule_datetime <= datetime.datetime.now():
+            messagebox.showerror("Erro", "A data e hora de agendamento devem ser no futuro.")
+            return
+        
+        # Atualizar a mensagem
+        for msg in self.messages:
+            if msg["id"] == msg_id:
+                msg["schedule_time"] = schedule_datetime.strftime("%Y-%m-%d %H:%M:%S")
+                msg["status"] = "Reagendado"  # Atualizar status
+                break
+        
+        # Salvar e atualizar
+        self.save_messages()
+        self.update_message_list()
+        
+        # Fechar janela de edição
+        window.destroy()
+        
+        messagebox.showinfo("Sucesso", "Mensagem reagendada com sucesso.")
+    
+    def duplicate_selected(self):
+        """Duplica a mensagem selecionada."""
+        selected_item = self.tree.selection()
+        if not selected_item:
+            messagebox.showwarning("Aviso", "Selecione uma mensagem para duplicar.")
+            return
+        
+        # Obter ID da mensagem selecionada
+        msg_id = int(self.tree.item(selected_item[0])["values"][0])
+        
+        # Encontrar a mensagem na lista
+        selected_msg = None
+        for msg in self.messages:
+            if msg["id"] == msg_id:
+                selected_msg = msg
+                break
+        
+        if not selected_msg:
+            messagebox.showerror("Erro", "Mensagem não encontrada.")
+            return
+        
+        # Criar uma cópia da mensagem com um novo ID
+        new_id = int(time.time())
+        new_msg = selected_msg.copy()
+        new_msg["id"] = new_id
+        new_msg["status"] = "Agendado"
+        
+        # Adicionar à lista
+        self.messages.append(new_msg)
+        
+        # Salvar e atualizar
+        self.save_messages()
+        self.update_message_list()
+        
+        messagebox.showinfo("Sucesso", "Mensagem duplicada com sucesso.")
+        
     def on_close(self):
         """Manipular fechamento da aplicação."""
         if self.scheduler_thread and self.scheduler_thread.is_alive():
@@ -493,6 +801,7 @@ class WhatsAppScheduler:
                 pass
         
         self.root.destroy()
+
 
 if __name__ == "__main__":
     root = tk.Tk()
