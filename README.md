@@ -30,7 +30,7 @@ Um agendador de mensagens automático para WhatsApp que permite programar o envi
 
 1. Clone este repositório:
    ```bash
-   git clone https://github.com/AlanEinsteinS/agendador-wpp/.git
+   git clone https://github.com/AlanEinsteinS/agendador-wpp.git
    cd agendador-wpp
    ```
 
