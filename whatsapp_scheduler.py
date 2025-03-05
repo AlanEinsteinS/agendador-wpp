@@ -20,7 +20,7 @@ class WhatsAppScheduler:
     def __init__(self, root):
         self.root = root
         self.root.title("Agendador Automático de WhatsApp")
-        self.root.geometry("800x600")
+        self.root.geometry("800x800")
         self.root.resizable(True, True)
         
         # Variáveis para armazenar os dados
